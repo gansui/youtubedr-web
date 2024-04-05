@@ -52,7 +52,7 @@ func mustTpl(page, content string) *template.Template {
 func init() {
 	baseTpl = template.Must(template.New("base.html").Parse(baseTplString))
 	indexTpl = mustTpl("index.html", indexTplStr)
-	loginTpl = mustTpl("login.html", loginTplString)
+	//loginTpl = mustTpl("login.html", loginTplString)
 	statusTpl = mustTpl("status.html", statusTplString)
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 }
@@ -62,19 +62,25 @@ var Option struct {
 	BBDown       string
 	Download     string
 	User         string
+	Action       string
 	Password     string
-	BBDownConfig string
+//	BBDownConfig string
+	Mimetype     string
+	Quality	     string
 }
 
 func init() {
-	flag.StringVar(&Option.Addr, "addr", ":9280", "http server listen address")
-	var defaultBBDown = "BBDown"
-	if _, err := os.Stat("./BBDown"); err == nil {
-		defaultBBDown = "./BBDown"
+	flag.StringVar(&Option.Addr, "addr", ":9270", "http server listen address")
+	var defaultBBDown = "youtubedr"
+	if _, err := os.Stat("./youtubedr"); err == nil {
+		defaultBBDown = "./youtubedr"
 	}
-	flag.StringVar(&Option.BBDown, "bbdown", defaultBBDown, "BBDown path")
+	flag.StringVar(&Option.BBDown, "bbdown", defaultBBDown, "youtubedr path")
+	flag.StringVar(&Option.Action, "action", "", "download action")
 	flag.StringVar(&Option.Download, "download", "./", "download path")
-	flag.StringVar(&Option.BBDownConfig, "bbdown-config", ``, "bbdown config file")
+	flag.StringVar(&Option.Quality, "quality", "hd1080", "quality parameter")
+	flag.StringVar(&Option.Mimetype, "mimetype", "mp4", "mimetype parameter")
+	//flag.StringVar(&Option.BBDownConfig, "bbdown-config", "", "youtubedr config file")
 	Option.User = os.Getenv("AUTH_USER")
 	Option.Password = os.Getenv("AUTH_PWD")
 }
@@ -175,11 +181,17 @@ func Start(joburl string) (*Job, error) {
 	j.EscapeURL = url.QueryEscape(j.URL)
 	j.Start = time.Now()
 	var opts = []string{
-		"--work-dir",
-		Option.Download,
+		"download",
+		//"",
 	}
-	if Option.BBDownConfig != "" {
-		opts = append(opts, "--config-file", Option.BBDownConfig)
+	if Option.Download != "" {
+		opts = append(opts, "--directory", Option.Download)
+	}
+	if Option.Quality != "" {
+		opts = append(opts, "--quality", Option.Quality)
+	}
+	if Option.Mimetype != "" {
+		opts = append(opts, "--mimetype", Option.Mimetype)
 	}
 	opts = append(opts, joburl)
 	cmd, err := Exec(Option.BBDown, opts...)
@@ -373,7 +385,7 @@ func (s *Service) LoginLog(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Service) Version(w http.ResponseWriter, r *http.Request) {
-	cmd, err := Exec(Option.BBDown, "--version")
+	cmd, err := Exec(Option.BBDown, "version")
 	if err != nil {
 		w.WriteHeader(500)
 		fmt.Fprintln(w, err)
@@ -492,7 +504,7 @@ func (s *Service) Serve(addr string) error {
 	s.Handle("GET", "/login", s.Login)
 	s.Handle("GET", "/login/log", s.LoginLog)
 	s.Handle("GET", "/ping", s.Ping)
-	s.Handle("GET", "/files/", s.ServeFile)
+	//s.Handle("GET", "/files/", s.ServeFile)
 	s.Handle("GET", "/version", s.Version)
 	return http.ListenAndServe(addr, s.mux)
 }
